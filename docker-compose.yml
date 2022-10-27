@@ -1,0 +1,40 @@
+version: '2'
+services:
+  rabbitmq:
+    image: rabbitmq:3.9
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=mypass
+  redis:
+    image: redis
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "celery -A tasks worker --loglevel=INFO"
+    environment:
+      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
+      - RESULT_BACKEND=redis://redis:6379/0
+      - C_FORCE_ROOT=true
+    volumes:
+      - ./app:/app/
+    working_dir: "/app"
+    depends_on:
+      - rabbitmq
+      - redis
+  doer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: tail -F /dev/null
+    volumes:
+      - ./app:/app/
+    working_dir: "/app"
+    environment:
+      - BROKER_URL=amqp://admin:mypass@rabbitmq:5672//
+      - RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - worker
+      - rabbitmq
+      - redis
+
